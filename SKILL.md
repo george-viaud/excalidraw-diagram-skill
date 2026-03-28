@@ -75,7 +75,9 @@ Every element MUST have colors assigned before proceeding. Do NOT use one color 
 
 ## STEP 4: Write the Generator Script
 
-**Action:** Write a Python script using the `Graph` API from `references/primitives.py`. The Graph handles all layout automatically via Graphviz — you do NOT need to assign coordinates.
+**Action:** Write a Python script to `/tmp/excalidraw/generate_<name>.py` using the `Graph` API from `references/primitives.py`. The Graph handles all layout automatically via Graphviz — you do NOT need to assign coordinates.
+
+**Important:** Only the `.excalidraw` file belongs in the project directory. Generator scripts (`.py`) and preview renders (`.png`) are intermediate build artifacts — always write them to `/tmp/excalidraw/`. Create the directory with `os.makedirs("/tmp/excalidraw", exist_ok=True)` at the top of the script.
 
 ### Graph API reference
 
@@ -119,7 +121,8 @@ g = Graph(
 ### Example: full C2 container diagram
 
 ```python
-import sys
+import os, sys
+os.makedirs("/tmp/excalidraw", exist_ok=True)
 sys.path.insert(0, "/home/user/.claude/skills/excalidraw-diagram/references")
 from primitives import Graph
 
@@ -148,7 +151,8 @@ g.edge("user", "ingress", label="HTTPS")
 g.edge("ingress", "http", label=":8080")
 g.edge("http", "ihs", label="SOAP")
 
-g.build("/path/to/output.excalidraw")
+# .excalidraw goes in the project; this script stays in /tmp/excalidraw/
+g.build("/path/to/project/docs/output.excalidraw")
 ```
 
 ### Low-level API (manual placement)
@@ -170,23 +174,23 @@ diagram(elements, "output.excalidraw")
 
 ## STEP 5: Run and Render
 
-**Action:** Run the generator script, then render the output.
+**Action:** Run the generator script, then render the `.excalidraw` output to a temporary PNG for validation.
 
 ```bash
-# Generate
-python3 /path/to/generate_diagram.py
+# Generate (.excalidraw goes to project dir, script is already in /tmp/excalidraw/)
+python3 /tmp/excalidraw/generate_<name>.py
 
-# Render
-cd ~/.claude/skills/excalidraw-diagram/references && uv run python render_excalidraw.py --dark <path-to-file.excalidraw>
+# Render preview to /tmp (NOT the project directory)
+cd ~/.claude/skills/excalidraw-diagram/references && uv run python render_excalidraw.py --dark --output /tmp/excalidraw/<name>.png <path-to-file.excalidraw>
 ```
 
 Always use `--dark`. Share the PNG path with the user as a clickable `file://` URI (percent-encode spaces as `%20`):
 ```
-Latest render: `file:///home/user/My%20Project/diagram.png`
+Latest render: `file:///tmp/excalidraw/diagram.png`
 ```
 
 ### Validation loop
-1. **Render** → share PNG path → Read the PNG yourself
+1. **Render** to `/tmp/excalidraw/` → share PNG path → Read the PNG yourself
 2. **Check composition**: Balanced layout? Empty voids or cramped areas?
 3. **Check colors**: Distinct for each element type?
 4. **Check text**: Visible, not clipped, not overlapping?
@@ -194,6 +198,8 @@ Latest render: `file:///home/user/My%20Project/diagram.png`
 6. **Fix the generator script** → re-run → re-render → repeat until clean
 
 **Important:** Always fix issues in the generator script, never in the `.excalidraw` output. The output is disposable — the script is the source of truth.
+
+**Cleanup:** Only the `.excalidraw` file should remain in the project. Generator scripts and PNGs in `/tmp/excalidraw/` are ephemeral and will be cleaned up by the OS.
 
 ### First-time setup
 ```bash
