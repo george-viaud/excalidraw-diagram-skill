@@ -386,7 +386,7 @@ def person(
         "y": y,
         "width": total_w,
         "height": total_h,
-        "strokeColor": "transparent",
+        "strokeColor": stroke,
         "backgroundColor": "transparent",
         "fillStyle": "solid",
         "strokeWidth": 0,
