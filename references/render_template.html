@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #ffffff; overflow: hidden; }
+    #root { display: inline-block; }
+    #root svg { display: block; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import { exportToSvg } from "https://esm.sh/@excalidraw/excalidraw?bundle";
+
+    window.renderDiagram = async function(jsonData) {
+      try {
+        const data = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
+        const elements = data.elements || [];
+        const appState = data.appState || {};
+        const files = data.files || {};
+
+        // Dark mode is injected by the Python script into appState before this runs.
+        if (!appState.viewBackgroundColor) {
+          appState.viewBackgroundColor = "#ffffff";
+        }
+
+        const desiredBg = appState.viewBackgroundColor;
+        const isDark = appState.exportWithDarkMode === true;
+
+        if (isDark) {
+          document.body.style.background = desiredBg;
+        }
+
+        const svg = await exportToSvg({
+          elements: elements,
+          appState: {
+            ...appState,
+            exportBackground: true,
+          },
+          files: files,
+        });
+
+        // Excalidraw's exportToSvg ignores our dark background color.
+        // Force it by patching ALL potential background elements.
+        if (isDark) {
+          // Patch the first rect (usually the background)
+          const allRects = svg.querySelectorAll("rect");
+          if (allRects.length > 0) {
+            allRects[0].setAttribute("fill", desiredBg);
+          }
+          // Also set SVG element background directly
+          svg.style.backgroundColor = desiredBg;
+          // And inject a background rect at the very start if needed
+          const svgNS = "http://www.w3.org/2000/svg";
+          const bgRect = document.createElementNS(svgNS, "rect");
+          bgRect.setAttribute("x", "0");
+          bgRect.setAttribute("y", "0");
+          bgRect.setAttribute("width", "100%");
+          bgRect.setAttribute("height", "100%");
+          bgRect.setAttribute("fill", desiredBg);
+          svg.insertBefore(bgRect, svg.firstChild);
+        }
+
+        // Clear any previous render
+        const root = document.getElementById("root");
+        root.innerHTML = "";
+        root.appendChild(svg);
+
+        window.__renderComplete = true;
+        window.__renderError = null;
+        return { success: true, width: svg.getAttribute("width"), height: svg.getAttribute("height") };
+      } catch (err) {
+        window.__renderComplete = true;
+        window.__renderError = err.message;
+        return { success: false, error: err.message };
+      }
+    };
+
+    // Signal that the module is loaded and ready
+    window.__moduleReady = true;
+  </script>
+</body>
+</html>
